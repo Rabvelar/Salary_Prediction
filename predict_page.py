@@ -21,21 +21,30 @@ df = pd.read_csv(csv_file_path)
 
 # Load the trained model and label encoders
 def load_model():
-    with open(model_file_path, 'rb') as file:
-        data = pickle.load(file)
-    return data
+    try:
+        with open(model_file_path, 'rb') as file:
+            data = pickle.load(file)
+        return data
+    except Exception as e:
+        st.error(f"Error loading model or encoders: {e}")
+        st.stop()
 
 data = load_model()
-regressor_loaded = data["model"]
-le_job_title = data["le_job_title"]
-le_experience_level = data["le_experience_level"]
-le_work_setting = data["le_work_setting"]
-le_company_location = data["le_company_location"]
+regressor_loaded = data.get("model")
+le_job_title = data.get("le_job_title")
+le_experience_level = data.get("le_experience_level")
+le_work_setting = data.get("le_work_setting")
+le_company_location = data.get("le_company_location")
+
+# Check if all required objects are loaded
+if not all([regressor_loaded, le_job_title, le_experience_level, le_work_setting, le_company_location]):
+    st.error("Model or encoders are missing or corrupted.")
+    st.stop()
 
 # Define the function to display the prediction page
 def show_predict_page():
     st.title("Data Jobs Salary Prediction")
-    st.write("""### We need some information to predict the salary""")
+    st.write("### We need some information to predict the salary")
 
     job_titles = (
         'Data Analyst',
@@ -77,14 +86,17 @@ def show_predict_page():
     company_location = st.selectbox("Company Country", company_locations)
 
     if st.button("Calculate Salary"):
-        x = np.array([[job_title, experience_level, work_setting, company_location]])
-        x[:, 0] = le_job_title.transform(x[:, 0])
-        x[:, 1] = le_experience_level.transform(x[:, 1])
-        x[:, 2] = le_work_setting.transform(x[:, 2])
-        x[:, 3] = le_company_location.transform(x[:, 3])
-        x = x.astype(float)
+        try:
+            x = np.array([[job_title, experience_level, work_setting, company_location]])
+            x[:, 0] = le_job_title.transform(x[:, 0])
+            x[:, 1] = le_experience_level.transform(x[:, 1])
+            x[:, 2] = le_work_setting.transform(x[:, 2])
+            x[:, 3] = le_company_location.transform(x[:, 3])
+            x = x.astype(float)
 
-        salary = regressor_loaded.predict(x)
-        st.subheader(f"The estimated salary is ${salary[0]:.2f}")
+            salary = regressor_loaded.predict(x)
+            st.subheader(f"The estimated salary is ${salary[0]:.2f}")
+        except Exception as e:
+            st.error(f"Error making prediction: {e}")
 
 show_predict_page()
